@@ -63,7 +63,7 @@ public final class PartitionQueryingExample {
         JavaPairRDD<Integer, List<Integer>> positiveSubjects = pairs.filter(new Function<Tuple2<Integer, List<Integer>>,Boolean>(){
                 @Override
                 public Boolean call(Tuple2<Integer, List<Integer>> tuple) {
-                    return (tuple._1>0);
+                    return (tuple._1>=0);
                 }            
         }).sortByKey(true, numberOfPartitions).persist(MEMORY_ONLY);
         
