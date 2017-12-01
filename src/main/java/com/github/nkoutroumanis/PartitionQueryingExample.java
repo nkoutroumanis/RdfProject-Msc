@@ -21,6 +21,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import static org.apache.spark.api.java.StorageLevels.MEMORY_ONLY;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
@@ -29,8 +30,9 @@ import scala.Tuple2;
  *
  * @author nicholaskoutroumanis
  */
-public class PartitionQueryingExample {
-    private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop//Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
+public final class PartitionQueryingExample {
+    private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
+    private static final int numberOfPartitions = 2;
      public static void main(String args[]) {
          
         //Initialization of Apache Spark
@@ -63,7 +65,7 @@ public class PartitionQueryingExample {
                 public Boolean call(Tuple2<Integer, List<Integer>> tuple) {
                     return (tuple._1>0);
                 }            
-        });
+        }).sortByKey(true, numberOfPartitions).persist(MEMORY_ONLY);
         
         JavaPairRDD<Integer, List<Integer>> negativeSubjects = pairs.filter(new Function<Tuple2<Integer, List<Integer>>,Boolean>(){
                 @Override
