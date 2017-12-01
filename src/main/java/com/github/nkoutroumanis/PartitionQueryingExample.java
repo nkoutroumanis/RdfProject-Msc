@@ -34,7 +34,6 @@ public final class PartitionQueryingExample {
     private static final String triplatesAbsolutePath = "/Users/charalambostilliros/Downloads/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
     private static final int numberOfPartitions = 2;
      public static void main(String args[]) {
-         System.out.prinln("sfas");
         //Initialization of Apache Spark
         SparkConf conf = new SparkConf().setMaster("local").setAppName("Spark");
 
