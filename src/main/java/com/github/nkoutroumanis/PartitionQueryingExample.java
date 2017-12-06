@@ -15,6 +15,7 @@
  */
 package com.github.nkoutroumanis;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -46,6 +48,7 @@ public final class PartitionQueryingExample {
 
     private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
     private static final int numberOfPartitions = 1;
+    private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
 
     public static void main(String args[]) {
         //Initialization of Apache Spark
@@ -55,64 +58,79 @@ public final class PartitionQueryingExample {
 
         HiveContext hiveCtx = new HiveContext(sc.sc());
         //Read txt - per line and Separate every Line to a triplet of numbers
-        JavaRDD<List<String>> wordsPerLine = sc.textFile(triplatesAbsolutePath).map(new Function<String, List<String>>() {
+        JavaRDD<String[]> wordsPerLine = sc.textFile(triplatesAbsolutePath).map(new Function<String, String[]>() {
             @Override
-            public List<String> call(String line) {
-                return Arrays.asList(line.split(" "));
+            public String[] call(String line) {
+                return line.split(" ");
             }
 
         });
 
         //Construct Pair RDD having as Key a Subject
-        JavaPairRDD<Integer, List<Integer>> pairs = wordsPerLine.mapToPair(
-                new PairFunction<List<String>, Integer, List<Integer>>() {
+        JavaPairRDD<Integer, Tuple2<Integer, Integer>> pairs = wordsPerLine.mapToPair(
+                new PairFunction<String[], Integer, Tuple2<Integer, Integer>>() {
             @Override
-            public Tuple2<Integer, List<Integer>> call(List<String> x) throws Exception {
-
-                return new Tuple2(Integer.parseInt(x.get(0)), Arrays.asList(Integer.parseInt(x.get(1)), Integer.parseInt(x.get(2))));
+            public Tuple2<Integer, Tuple2<Integer, Integer>> call(String[] x) throws Exception {
+                return new Tuple2(Integer.parseInt(x[0]), new Tuple2(Integer.parseInt(x[1]), Integer.parseInt(x[2])));
             }
         }
         );
 
-
-        JavaPairRDD<Integer, List<Integer>> positiveSubjects = pairs.filter(new Function<Tuple2<Integer, List<Integer>>, Boolean>() {
+        JavaRDD<Row> positiveSubjects = pairs.filter(new Function<Tuple2<Integer, Tuple2<Integer, Integer>>, Boolean>() {
             @Override
-            public Boolean call(Tuple2<Integer, List<Integer>> tuple) {
+            public Boolean call(Tuple2<Integer, Tuple2<Integer, Integer>> tuple) {
                 return (tuple._1 >= 0);
             }
-        }).sortByKey(true, numberOfPartitions).persist(MEMORY_ONLY);
-       System.out.println(positiveSubjects.collect());
-        
+        }).sortByKey(true, numberOfPartitions).mapPartitions(new FlatMapFunction<Iterator<Tuple2<Integer, Tuple2<Integer, Integer>>>, Row>() {
+            @Override
+            public Iterable<Row> call(Iterator<Tuple2<Integer, Tuple2<Integer, Integer>>> t) {
+                List<Row> i = new ArrayList<Row>();
 
-//        JavaPairRDD<Integer, List<Integer>> negativeSubjects = pairs.filter(new Function<Tuple2<Integer, List<Integer>>, Boolean>() {
-//            @Override
-//            public Boolean call(Tuple2<Integer, List<Integer>> tuple) {
-//                return (tuple._1 < 0);
-//            }
-//        });
-//
-//        final Broadcast<JavaPairRDD<Integer, List<Integer>>> x = sc.broadcast(negativeSubjects);
-//
-//        x.getValue().mapPartitions(new FlatMapFunction<Iterator<Tuple2<Integer,List<Integer>>>, Row>(){
-//            @Override
-//            public Iterable<Row> call(Iterator<Tuple2<Integer, List<Integer>>> t) throws Exception {
-//                t.next().
-//                        return RowFactory.create(values);
-//               
-//            }
-//            
-//        }
-//        )
-//       
-//        //contstruct the column names
-//        StructType customSchema = new StructType(new StructField[]{
-//            new StructField("Subject", DataTypes.StringType, true, Metadata.empty()),
-//            new StructField("Predice", DataTypes.StringType, true, Metadata.empty()),
-//            new StructField("Object", DataTypes.StringType, true, Metadata.empty()),});
-//JavaPairRDD.toRDD(positiveSubjects);
-//
-//        DataFrame df = hiveCtx.createDataset(JavaPairRDD.toRDD(positiveSubjects), customSchema);
-        
-        
+                Tuple2<Integer, Tuple2<Integer, Integer>> x;
+                while (t.hasNext()) {
+                    x = t.next();
+                    i.add(RowFactory.create(x._1, x._2._1, x._2._2));
+                }
+                return i;
+            }
+        }, true).persist(MEMORY_ONLY);
+        System.out.println("" + positiveSubjects.collect());
+
+        JavaRDD<Row> negativeSubjects = pairs.filter(new Function<Tuple2<Integer, Tuple2<Integer, Integer>>, Boolean>() {
+            @Override
+            public Boolean call(Tuple2<Integer, Tuple2<Integer, Integer>> tuple) {
+                return (tuple._1 < 0);
+            }
+        }).map(new Function<Tuple2<Integer, Tuple2<Integer, Integer>>, Row>() {
+            @Override
+            public Row call(Tuple2<Integer, Tuple2<Integer, Integer>> t) throws Exception {
+                return RowFactory.create(t._1, t._2._1, t._2._2);
+            }
+
+        });
+        System.out.println("Arnitika Count" + negativeSubjects.count());
+        final Broadcast<JavaRDD<Row>> x = sc.broadcast(negativeSubjects);
+
+        //contstruct the column names
+        StructType customSchema = new StructType(new StructField[]{
+            new StructField("Subject", DataTypes.IntegerType, true, Metadata.empty()),
+            new StructField("Predicate", DataTypes.IntegerType, true, Metadata.empty()),
+            new StructField("Object", DataTypes.IntegerType, true, Metadata.empty()),});
+
+        DataFrame dfPositive = hiveCtx.createDataFrame(positiveSubjects, customSchema);
+        hiveCtx.registerDataFrameAsTable(dfPositive, "Positive");
+        hiveCtx.cacheTable("Positive");
+
+        DataFrame dfNegative = hiveCtx.createDataFrame(negativeSubjects, customSchema);
+        hiveCtx.registerDataFrameAsTable(dfNegative, "Negative");
+        hiveCtx.cacheTable("Negative");
+
+        //form the star query and save the results as a txt file
+        hiveCtx.sql("SELECT `Subject`, `Predicate`, `Object` FROM Positive WHERE `Subject`='115852' ");//.toJavaRDD().saveAsTextFile(sqlResults);
+        hiveCtx.sql("SELECT `Subject`, `Predicate`, `Object` FROM Negative WHERE `Subject`='-3161' ").toJavaRDD().saveAsTextFile(sqlResults);
+        hiveCtx.uncacheTable("Positive");
+        hiveCtx.uncacheTable("Negative");
+
+        positiveSubjects.unpersist();
     }
 }
