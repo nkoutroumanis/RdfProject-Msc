@@ -16,19 +16,16 @@
 package com.github.nkoutroumanis;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import static org.apache.spark.api.java.StorageLevels.MEMORY_ONLY;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -38,7 +35,6 @@ import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import scala.Tuple2;
-import scala.reflect.api.TypeTags.TypeTag;
 
 /**
  *
@@ -50,7 +46,7 @@ public final class PartitionQueryingExample {
     private static final int numberOfPartitions = 1;
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
 
-    public static void main(String args[]) {
+    public static void main(String args[]) {        
         //Initialization of Apache Spark
         SparkConf conf = new SparkConf().setMaster("local").setAppName("Spark");
 
@@ -93,7 +89,7 @@ public final class PartitionQueryingExample {
                 }
                 return i;
             }
-        }, true).persist(MEMORY_ONLY);
+        }, true);
         System.out.println("" + positiveSubjects.collect());
 
         JavaRDD<Row> negativeSubjects = pairs.filter(new Function<Tuple2<Integer, Tuple2<Integer, Integer>>, Boolean>() {
@@ -119,18 +115,28 @@ public final class PartitionQueryingExample {
 
         DataFrame dfPositive = hiveCtx.createDataFrame(positiveSubjects, customSchema);
         hiveCtx.registerDataFrameAsTable(dfPositive, "Positive");
-        hiveCtx.cacheTable("Positive");
 
         DataFrame dfNegative = hiveCtx.createDataFrame(negativeSubjects, customSchema);
         hiveCtx.registerDataFrameAsTable(dfNegative, "Negative");
-        hiveCtx.cacheTable("Negative");
 
-        //form the star query and save the results as a txt file
-        hiveCtx.sql("SELECT `Subject`, `Predicate`, `Object` FROM Positive WHERE `Subject`='115852' ");//.toJavaRDD().saveAsTextFile(sqlResults);
-        hiveCtx.sql("SELECT `Subject`, `Predicate`, `Object` FROM Negative WHERE `Subject`='-3161' ").toJavaRDD().saveAsTextFile(sqlResults);
-        hiveCtx.uncacheTable("Positive");
-        hiveCtx.uncacheTable("Negative");
+        hiveCtx.sql("SELECT Negative.Object FROM (SELECT Positive.Object FROM Negative "
+                + " INNER JOIN Positive ON Negative.Object=Positive.Subject"
+                + " WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'"
+                + ") AS Table1"
+                + " LEFT OUTER JOIN Negative ON(Negative.Subject=Table1.Object)"
+                + "WHERE Negative.Predicate='-21'").toJavaRDD().saveAsTextFile(sqlResults);
 
+//        hiveCtx.sql("SELECT count(*) FROM (SELECT * FROM Negative "
+//                + "WHERE (Negative.Predicate='-2' AND Negative.Subject='-39') OR Negative.Predicate='-21' "
+//                + " UNION ALL SELECT * FROM Positive WHERE Positive.Predicate='-13'"
+//                + ") AS Table2"
+//                + " LEFT OUTER JOIN (SELECT * FROM Negative "
+//                + "WHERE (Negative.Predicate='-2' AND Negative.Subject='-39') OR Negative.Predicate='-21' "
+//                + " UNION ALL SELECT * FROM Positive WHERE Positive.Predicate='-13'"
+//                + ") AS Table1"
+//                + " ON Table2.Subject = Table1.Object"
+//                + "").toJavaRDD().saveAsTextFile(sqlResults);
+        
         positiveSubjects.unpersist();
     }
 }
