@@ -15,9 +15,15 @@
  */
 package com.github.nkoutroumanis;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -45,8 +51,20 @@ public final class PartitionQueryingExample {
     private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
     private static final int numberOfPartitions = 1;
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
+    private static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
 
-    public static void main(String args[]) {        
+    public static void main(String args[]) throws IOException {    
+
+        //Dictionary Construction
+        Map<String,String> dictionary = new HashMap<>();
+        Files.lines(Paths.get(dictionaryPath)).forEach(new Consumer<String>(){
+            @Override
+            public void accept(String s) {
+                dictionary.put(s.substring(0, s.lastIndexOf("	")+1), s.substring(s.lastIndexOf("	")+1));
+            }
+        }
+        );
+        
         //Initialization of Apache Spark
         SparkConf conf = new SparkConf().setMaster("local").setAppName("Spark");
 
@@ -106,6 +124,7 @@ public final class PartitionQueryingExample {
         });
         System.out.println("Arnitika Count" + negativeSubjects.count());
         final Broadcast<JavaRDD<Row>> x = sc.broadcast(negativeSubjects);
+        final Broadcast<Map<String,String>> y = sc.broadcast(dictionary);
 
         //contstruct the column names
         StructType customSchema = new StructType(new StructField[]{
@@ -124,7 +143,8 @@ public final class PartitionQueryingExample {
                 + " WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'"
                 + ") AS Table1"
                 + " LEFT OUTER JOIN Negative ON(Negative.Subject=Table1.Object)"
-                + "WHERE Negative.Predicate='-21'").toJavaRDD().saveAsTextFile(sqlResults);
+                + "WHERE Negative.Predicate='-21'").toJavaRDD().saveAsTextFile(sqlResults); 
+                
 
 //        hiveCtx.sql("SELECT count(*) FROM (SELECT * FROM Negative "
 //                + "WHERE (Negative.Predicate='-2' AND Negative.Subject='-39') OR Negative.Predicate='-21' "
@@ -135,8 +155,6 @@ public final class PartitionQueryingExample {
 //                + " UNION ALL SELECT * FROM Positive WHERE Positive.Predicate='-13'"
 //                + ") AS Table1"
 //                + " ON Table2.Subject = Table1.Object"
-//                + "").toJavaRDD().saveAsTextFile(sqlResults);
-        
-        positiveSubjects.unpersist();
+//                + "").toJavaRDD().saveAsTextFile(sqlResults);    
     }
 }
