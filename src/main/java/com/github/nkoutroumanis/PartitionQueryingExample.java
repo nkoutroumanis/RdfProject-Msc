@@ -15,15 +15,18 @@
  */
 package com.github.nkoutroumanis;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import org.apache.commons.io.FileUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -53,18 +56,21 @@ public final class PartitionQueryingExample {
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
     private static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
 
-    public static void main(String args[]) throws IOException {    
+    public static void main(String args[]) throws IOException {
 
         //Dictionary Construction
-        Map<String,String> dictionary = new HashMap<>();
-        Files.lines(Paths.get(dictionaryPath)).forEach(new Consumer<String>(){
+        Map<Integer, String> dictionary = new HashMap<>();
+        Files.lines(Paths.get(dictionaryPath)).forEach(new Consumer<String>() {
             @Override
             public void accept(String s) {
-                dictionary.put(s.substring(0, s.lastIndexOf("	")+1), s.substring(s.lastIndexOf("	")+1));
+                dictionary.put(Integer.parseInt(s.split("	", 2)[0]), s.split("	", 2)[1]);
             }
         }
         );
-        
+
+        //Delete SQL Results Folder if Exist
+        FileUtils.deleteDirectory(new File(sqlResults));
+
         //Initialization of Apache Spark
         SparkConf conf = new SparkConf().setMaster("local").setAppName("Spark");
 
@@ -108,7 +114,6 @@ public final class PartitionQueryingExample {
                 return i;
             }
         }, true);
-        System.out.println("" + positiveSubjects.collect());
 
         JavaRDD<Row> negativeSubjects = pairs.filter(new Function<Tuple2<Integer, Tuple2<Integer, Integer>>, Boolean>() {
             @Override
@@ -122,11 +127,11 @@ public final class PartitionQueryingExample {
             }
 
         });
-        System.out.println("Arnitika Count" + negativeSubjects.count());
-        final Broadcast<JavaRDD<Row>> x = sc.broadcast(negativeSubjects);
-        final Broadcast<Map<String,String>> y = sc.broadcast(dictionary);
 
-        //contstruct the column names
+        final Broadcast<JavaRDD<Row>> x = sc.broadcast(negativeSubjects);
+        final Broadcast<Map<Integer, String>> y = sc.broadcast(dictionary);
+
+        //Contstruct the Column Names
         StructType customSchema = new StructType(new StructField[]{
             new StructField("Subject", DataTypes.IntegerType, true, Metadata.empty()),
             new StructField("Predicate", DataTypes.IntegerType, true, Metadata.empty()),
@@ -138,13 +143,36 @@ public final class PartitionQueryingExample {
         DataFrame dfNegative = hiveCtx.createDataFrame(negativeSubjects, customSchema);
         hiveCtx.registerDataFrameAsTable(dfNegative, "Negative");
 
-        hiveCtx.sql("SELECT Negative.Object FROM (SELECT Positive.Object FROM Negative "
+        DataFrame results = hiveCtx.sql("SELECT Negative.Object FROM (SELECT Positive.Object FROM Negative "
                 + " INNER JOIN Positive ON Negative.Object=Positive.Subject"
                 + " WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'"
                 + ") AS Table1"
                 + " LEFT OUTER JOIN Negative ON(Negative.Subject=Table1.Object)"
-                + "WHERE Negative.Predicate='-21'").toJavaRDD().saveAsTextFile(sqlResults); 
-                
+                + "WHERE Negative.Predicate='-21'");
+
+//        Check in a different way the Upper Sql Query
+//        hiveCtx.sql("SELECT Positive.Object AS aColumn FROM Negative INNER JOIN Positive ON Negative.Object=Positive.Subject WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'").registerTempTable("Something");        
+//        hiveCtx.sql("SELECT COUNT(Negative.Object) FROM Negative INNER JOIN Something ON Negative.Subject=Something.aColumn WHERE Negative.Predicate='-21'").toJavaRDD().saveAsTextFile(sqlResults);    
+
+        //Procedure Of Decoding
+        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
+            @Override
+            public Iterable<Row> call(Iterator<Row> t) throws Exception {
+                Collection<Row> rows = new ArrayList<Row>();
+                while (t.hasNext()) {
+                    //for every row get all the elements it has and decode them
+                    Collection<String> elementsOfARow = new ArrayList<String>();
+                    Row row = t.next();
+                    for (int i = 0; i < row.size(); i++) {
+                        elementsOfARow.add(y.getValue().get(row.getInt(i)));
+                    }
+                    rows.add(RowFactory.create(elementsOfARow));
+                }
+                return rows;
+            }
+        }, true);
+
+        s.saveAsTextFile(sqlResults);
 
 //        hiveCtx.sql("SELECT count(*) FROM (SELECT * FROM Negative "
 //                + "WHERE (Negative.Predicate='-2' AND Negative.Subject='-39') OR Negative.Predicate='-21' "
