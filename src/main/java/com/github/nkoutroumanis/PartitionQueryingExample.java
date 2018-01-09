@@ -54,10 +54,10 @@ public final class PartitionQueryingExample {
     private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
     private static final int numberOfPartitions = 1;
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
-    private static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
+    public static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
 
     public static void main(String args[]) throws IOException {
-
+        
         //Dictionary Construction
         Map<Integer, String> dictionary = new HashMap<>();
         Files.lines(Paths.get(dictionaryPath)).forEach(new Consumer<String>() {
@@ -140,19 +140,23 @@ public final class PartitionQueryingExample {
         DataFrame dfPositive = hiveCtx.createDataFrame(positiveSubjects, customSchema);
         hiveCtx.registerDataFrameAsTable(dfPositive, "Positive");
 
-        DataFrame dfNegative = hiveCtx.createDataFrame(negativeSubjects, customSchema);
+        DataFrame dfNegative = hiveCtx.createDataFrame(x.getValue(), customSchema);
         hiveCtx.registerDataFrameAsTable(dfNegative, "Negative");
 
-        DataFrame results = hiveCtx.sql("SELECT Negative.Object FROM (SELECT Positive.Object FROM Negative "
-                + " INNER JOIN Positive ON Negative.Object=Positive.Subject"
-                + " WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'"
-                + ") AS Table1"
-                + " LEFT OUTER JOIN Negative ON(Negative.Subject=Table1.Object)"
-                + "WHERE Negative.Predicate='-21'");
-
+//        DataFrame results = hiveCtx.sql("SELECT Negative.Object FROM (SELECT Positive.Object FROM Negative "
+//                + " INNER JOIN Positive ON Negative.Object=Positive.Subject"
+//                + " WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'"
+//                + ") AS Table1"
+//                + " LEFT OUTER JOIN Negative ON(Negative.Subject=Table1.Object)"
+//                + "WHERE Negative.Predicate='-21'");
+        
 //        Check in a different way the Upper Sql Query
 //        hiveCtx.sql("SELECT Positive.Object AS aColumn FROM Negative INNER JOIN Positive ON Negative.Object=Positive.Subject WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'").registerTempTable("Something");        
 //        hiveCtx.sql("SELECT COUNT(Negative.Object) FROM Negative INNER JOIN Something ON Negative.Subject=Something.aColumn WHERE Negative.Predicate='-21'").toJavaRDD().saveAsTextFile(sqlResults);    
+
+       //Sparql To Sql Using the Class MyOpVisitorBase
+       //Sparkql Queries should be written in the form: SELECT * WHERE {'aString1' <aString2> ':aString3'} (if there are conditions to be used on Subject, Predicate and Object) or SELECT * WHERE {?x ?y ?z}
+        DataFrame results = hiveCtx.sql(MyOpVisitorBase.sparqlToEncodedSql("SELECT * WHERE {':node_376609000_1451606409000_-9.15947_38.70289' <a> ':Node'}"));
 
         //Procedure Of Decoding
         JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
