@@ -29,6 +29,7 @@ public class MyOpVisitorBase extends OpVisitorBase {
 
     private static String triplets;
     private static Map<String, Integer> dictionary;
+    private static MyOpVisitorBase m = new MyOpVisitorBase();
 
     public void myOpVisitorWalker(Op op) {
         OpWalker.walk(op, this);
@@ -47,7 +48,6 @@ public class MyOpVisitorBase extends OpVisitorBase {
     public static void getTriples(String q) {
         Query query = QueryFactory.create(q);
         Op op = Algebra.compile(query);
-        MyOpVisitorBase m = new MyOpVisitorBase();
         m.myOpVisitorWalker(op);
     }
 
@@ -126,5 +126,9 @@ public class MyOpVisitorBase extends OpVisitorBase {
 
         return formQuery;
 
+    }
+    public static void main(String args[]) throws IOException
+    {
+        System.out.println(sparqlToEncodedSql("SELECT * WHERE {':node_376609000_1451606409000_-9.15947_38.70289' <a> ?x . ?x <a> ':Node'}"));
     }
 }
