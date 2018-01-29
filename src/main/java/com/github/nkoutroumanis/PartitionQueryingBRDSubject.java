@@ -156,7 +156,7 @@ public final class PartitionQueryingBRDSubject {
 
         }
 
-        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime));
+        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime)/10);
 //        
 ////        Check in a different way the Upper Sql Query
 ////        hiveCtx.sql("SELECT Positive.Object AS aColumn FROM Negative INNER JOIN Positive ON Negative.Object=Positive.Subject WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'").registerTempTable("Something");        

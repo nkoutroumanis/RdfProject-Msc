@@ -54,7 +54,7 @@ import scala.Tuple2;
 public final class PartitionQueryingPredicate {
 
     private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
-    private static final int numberOfPartitions = 1;
+    private static final int numberOfPartitions = 5;
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
     public static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
 
@@ -111,7 +111,7 @@ public final class PartitionQueryingPredicate {
                 return i;
             }
         }, true);
-        //subjects.saveAsTextFile(sqlResults);
+//        subjects.saveAsTextFile(sqlResults);
 
         final Broadcast<Map<Integer, String>> y = sc.broadcast(dictionary);
 
@@ -131,7 +131,7 @@ public final class PartitionQueryingPredicate {
             DataFrame results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
         }
         
-        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime));
+        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime)/10);
 
         //Procedure Of Decoding
 //        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {

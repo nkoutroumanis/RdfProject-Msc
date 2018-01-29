@@ -129,7 +129,7 @@ public final class PartitionQueryingSubject {
             DataFrame results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
         }
         
-        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime));
+        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime)/10);
 
         //Procedure Of Decoding
 //        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
