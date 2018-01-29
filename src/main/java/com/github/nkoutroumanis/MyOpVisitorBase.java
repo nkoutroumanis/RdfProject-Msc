@@ -56,7 +56,7 @@ public class MyOpVisitorBase extends OpVisitorBase {
         //create the HashMap if dictionary is null
         if (dictionary == null) {
             dictionary = new HashMap<>();
-            Files.lines(Paths.get(PartitionQueryingExample.dictionaryPath)).forEach(new Consumer<String>() {
+            Files.lines(Paths.get(PartitionQueryingBRDSubject.dictionaryPath)).forEach(new Consumer<String>() {
                 @Override
                 public void accept(String s) {
                     dictionary.put(s.split("	", 2)[1], Integer.parseInt(s.split("	", 2)[0]));

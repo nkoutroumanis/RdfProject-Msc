@@ -15,13 +15,11 @@ package com.github.nkoutroumanis;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import com.github.nkoutroumanis.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -50,10 +48,11 @@ import scala.Tuple2;
  *
  * @author nicholaskoutroumanis
  */
-public final class PartitionQueryingExampleWithoutBroadcast {
+/* Range Partitioning By Subject Without Broadcast*/
+public final class PartitionQueryingSubject {
 
     private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
-    private static final int numberOfPartitions = 5;
+    private static final int numberOfPartitions = 1;
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
     public static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
 
@@ -73,7 +72,7 @@ public final class PartitionQueryingExampleWithoutBroadcast {
         FileUtils.deleteDirectory(new File(sqlResults));
 
         //Initialization of Apache Spark
-        SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("Spark");
+        SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("Spark").set("spark.default.parallelism", numberOfPartitions+"");
 
         JavaSparkContext sc = new JavaSparkContext(conf);
 
@@ -112,8 +111,6 @@ public final class PartitionQueryingExampleWithoutBroadcast {
         }, true);
         //subjects.saveAsTextFile(sqlResults);
 
-        System.out.println("PARTITIONS: " + subjects.rdd().getPartitions().length);
-
         final Broadcast<Map<Integer, String>> y = sc.broadcast(dictionary);
 
         //Contstruct the Column Names
@@ -126,9 +123,12 @@ public final class PartitionQueryingExampleWithoutBroadcast {
         hiveCtx.registerDataFrameAsTable(dfsubjects, "table");
 
         long startTime = System.currentTimeMillis();
-
-        DataFrame results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
-
+        
+        for(int i=0;i<10;i++)
+        {
+            DataFrame results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
+        }
+        
         System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime));
 
         //Procedure Of Decoding
