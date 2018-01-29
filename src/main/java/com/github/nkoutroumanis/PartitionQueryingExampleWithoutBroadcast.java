@@ -15,8 +15,6 @@ package com.github.nkoutroumanis;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 import com.github.nkoutroumanis.*;
 import java.io.File;
 import java.io.IOException;
@@ -55,12 +53,12 @@ import scala.Tuple2;
 public final class PartitionQueryingExampleWithoutBroadcast {
 
     private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
-    private static final int numberOfPartitions = 1;
+    private static final int numberOfPartitions = 5;
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
     public static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
 
     public static void main(String args[]) throws IOException {
-        
+
         //Dictionary Construction
         Map<Integer, String> dictionary = new HashMap<>();
         Files.lines(Paths.get(dictionaryPath)).forEach(new Consumer<String>() {
@@ -77,7 +75,6 @@ public final class PartitionQueryingExampleWithoutBroadcast {
         //Initialization of Apache Spark
         SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("Spark");
 
-       
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         HiveContext hiveCtx = new HiveContext(sc.sc());
@@ -113,8 +110,9 @@ public final class PartitionQueryingExampleWithoutBroadcast {
                 return i;
             }
         }, true);
+        //subjects.saveAsTextFile(sqlResults);
 
-        System.out.println("PARTITIONS: "+subjects.rdd().getPartitions().length);
+        System.out.println("PARTITIONS: " + subjects.rdd().getPartitions().length);
 
         final Broadcast<Map<Integer, String>> y = sc.broadcast(dictionary);
 
@@ -127,14 +125,12 @@ public final class PartitionQueryingExampleWithoutBroadcast {
         DataFrame dfsubjects = hiveCtx.createDataFrame(subjects, customSchema);
         hiveCtx.registerDataFrameAsTable(dfsubjects, "table");
 
-               long startTime = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
 
-//        hiveCtx.sql("SELECT COUNT(Negative.Object) FROM Negative n INNER JOIN Positive ON n.Object=Positive.Subject WHERE n.Subject='-39' AND n.Predicate='-2' AND Positive.Predicate='-13'");                      
-               
         DataFrame results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
-        
-        System.out.println("EXECUTION TIME: "+(System.currentTimeMillis()-startTime));
-        
+
+        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime));
+
         //Procedure Of Decoding
 //        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
 //            @Override
@@ -155,6 +151,5 @@ public final class PartitionQueryingExampleWithoutBroadcast {
 //
 //        
 //        s.saveAsTextFile(sqlResults);
-
     }
 }
