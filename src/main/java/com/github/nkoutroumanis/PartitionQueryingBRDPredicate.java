@@ -53,7 +53,7 @@ import scala.Tuple2;
 public final class PartitionQueryingBRDPredicate {
 
     private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
-    private static final int numberOfPartitions = 6;
+    private static final int numberOfPartitions = 1;
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
     public static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
 
