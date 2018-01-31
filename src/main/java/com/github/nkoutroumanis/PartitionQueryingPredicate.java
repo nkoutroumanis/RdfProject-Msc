@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -132,24 +133,23 @@ public final class PartitionQueryingPredicate {
         System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime) / 10);
 
         //Procedure Of Decoding
-//        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
-//            @Override
-//            public Iterable<Row> call(Iterator<Row> t) throws Exception {
-//                Collection<Row> rows = new ArrayList<Row>();
-//                while (t.hasNext()) {
-//                    //for every row get all the elements it has and decode them
-//                    Collection<String> elementsOfARow = new ArrayList<String>();
-//                    Row row = t.next();
-//                    for (int i = 0; i < row.size(); i++) {
-//                        elementsOfARow.add(y.getValue().get(row.getInt(i)));
-//                    }
-//                    rows.add(RowFactory.create(elementsOfARow));
-//                }
-//                return rows;
-//            }
-//        }, true);
-//
-//        
-//        s.saveAsTextFile(sqlResults);
+        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
+            @Override
+            public Iterable<Row> call(Iterator<Row> t) throws Exception {
+                Collection<Row> rows = new ArrayList<Row>();
+                while (t.hasNext()) {
+                    //for every row get all the elements it has and decode them
+                    Collection<String> elementsOfARow = new ArrayList<String>();
+                    Row row = t.next();
+                    for (int i = 0; i < row.size(); i++) {
+                        elementsOfARow.add(y.getValue().get(row.getInt(i)));
+                    }
+                    rows.add(RowFactory.create(elementsOfARow));
+                }
+                return rows;
+            }
+        }, true);
+
+        s.saveAsTextFile(sqlResults);
     }
 }
