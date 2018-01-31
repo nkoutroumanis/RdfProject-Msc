@@ -15,13 +15,12 @@ package com.github.nkoutroumanis;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -54,7 +53,7 @@ import scala.Tuple2;
 public final class PartitionQueryingBRDPredicate {
 
     private static final String triplatesAbsolutePath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/ais_jan2016_20170329_encoded.sample.txt";//absolute path of the txt containing triplates
-    private static final int numberOfPartitions = 5;
+    private static final int numberOfPartitions = 6;
     private static final String sqlResults = "/Users/nicholaskoutroumanis/Desktop/SQL Results";
     public static final String dictionaryPath = "/Users/nicholaskoutroumanis/Desktop/aisEncodedDataSample/dictionary.txt";
 
@@ -116,7 +115,7 @@ public final class PartitionQueryingBRDPredicate {
                 return i;
             }
         }, true);
-//        positiveSubjects.saveAsTextFile(sqlResults);
+        positiveSubjects.saveAsTextFile(sqlResults);
 
         JavaRDD<Row> negativeSubjects = pairs.filter(new Function<Tuple2<Integer, Tuple2<Integer, Integer>>, Boolean>() {
             @Override
@@ -146,10 +145,11 @@ public final class PartitionQueryingBRDPredicate {
         DataFrame dfNegative = hiveCtx.createDataFrame(x.getValue(), customSchema);
         hiveCtx.registerDataFrameAsTable(dfNegative, "Negative");
 
-        long startTime = System.currentTimeMillis();
+        DataFrame results = null;
 
+        long startTime = System.currentTimeMillis();
         for (int i = 0; i < 10; i++) {
-            DataFrame results = hiveCtx.sql("SELECT Negative.Object FROM (SELECT Positive.Object FROM Negative "
+            results = hiveCtx.sql("SELECT Negative.Object FROM (SELECT Positive.Object FROM Negative "
                     + " INNER JOIN Positive ON Negative.Object=Positive.Subject"
                     + " WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'"
                     + ") AS Table1"
@@ -158,46 +158,27 @@ public final class PartitionQueryingBRDPredicate {
 
         }
 
-        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime)/10);
-        
-////        Check in a different way the Upper Sql Query
-////        hiveCtx.sql("SELECT Positive.Object AS aColumn FROM Negative INNER JOIN Positive ON Negative.Object=Positive.Subject WHERE Negative.Subject='-39' AND Negative.Predicate='-2' AND Positive.Predicate='-13'").registerTempTable("Something");        
-////        hiveCtx.sql("SELECT COUNT(Negative.Object) FROM Negative INNER JOIN Something ON Negative.Subject=Something.aColumn WHERE Negative.Predicate='-21'").toJavaRDD().saveAsTextFile(sqlResults);    
-//
-//       //Sparql To Sql Using the Class MyOpVisitorBase
-//       //Sparkql Queries should be written in the form: SELECT * WHERE {'aString1' <aString2> ':aString3'} (if there are conditions to be used on Subject, Predicate and Object) or SELECT * WHERE {?x ?y ?z}
-//      
-//        //DataFrame results = hiveCtx.sql(MyOpVisitorBase.sparqlToEncodedSql("SELECT * WHERE {':node_376609000_1451606409000_-9.15947_38.70289' <a> ':Node'}"));
-//
-//        //Procedure Of Decoding
-//        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
-//            @Override
-//            public Iterable<Row> call(Iterator<Row> t) throws Exception {
-//                Collection<Row> rows = new ArrayList<Row>();
-//                while (t.hasNext()) {
-//                    //for every row get all the elements it has and decode them
-//                    Collection<String> elementsOfARow = new ArrayList<String>();
-//                    Row row = t.next();
-//                    for (int i = 0; i < row.size(); i++) {
-//                        elementsOfARow.add(y.getValue().get(row.getInt(i)));
-//                    }
-//                    rows.add(RowFactory.create(elementsOfARow));
-//                }
-//                return rows;
-//            }
-//        }, true);
-//
-//        s.saveAsTextFile(sqlResults);
+        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime) / 10);
 
-//        hiveCtx.sql("SELECT count(*) FROM (SELECT * FROM Negative "
-//                + "WHERE (Negative.Predicate='-2' AND Negative.Subject='-39') OR Negative.Predicate='-21' "
-//                + " UNION ALL SELECT * FROM Positive WHERE Positive.Predicate='-13'"
-//                + ") AS Table2"
-//                + " LEFT OUTER JOIN (SELECT * FROM Negative "
-//                + "WHERE (Negative.Predicate='-2' AND Negative.Subject='-39') OR Negative.Predicate='-21' "
-//                + " UNION ALL SELECT * FROM Positive WHERE Positive.Predicate='-13'"
-//                + ") AS Table1"
-//                + " ON Table2.Subject = Table1.Object"
-//                + "").toJavaRDD().saveAsTextFile(sqlResults);    
+        //Procedure Of Decoding
+        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
+            @Override
+            public Iterable<Row> call(Iterator<Row> t) throws Exception {
+                Collection<Row> rows = new ArrayList<Row>();
+                while (t.hasNext()) {
+                    //for every row get all the elements it has and decode them
+                    Collection<String> elementsOfARow = new ArrayList<String>();
+                    Row row = t.next();
+                    for (int i = 0; i < row.size(); i++) {
+                        elementsOfARow.add(y.getValue().get(row.getInt(i)));
+                    }
+                    rows.add(RowFactory.create(elementsOfARow));
+                }
+                return rows;
+            }
+        }, true);
+
+        s.saveAsTextFile(sqlResults);
+
     }
 }

@@ -1,7 +1,5 @@
 package com.github.nkoutroumanis;
 
-
-
 /*
  * Copyright 2017 nicholaskoutroumanis.
  *
@@ -74,7 +72,7 @@ public final class PartitionQueryingPredicate {
         FileUtils.deleteDirectory(new File(sqlResults));
 
         //Initialization of Apache Spark
-        SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("Spark").set("spark.default.parallelism", numberOfPartitions+"");
+        SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("Spark").set("spark.default.parallelism", numberOfPartitions + "");
 
         JavaSparkContext sc = new JavaSparkContext(conf);
 
@@ -124,14 +122,14 @@ public final class PartitionQueryingPredicate {
         DataFrame dfsubjects = hiveCtx.createDataFrame(subjects, customSchema);
         hiveCtx.registerDataFrameAsTable(dfsubjects, "table");
 
+        DataFrame results = null;
+
         long startTime = System.currentTimeMillis();
-        
-        for(int i=0;i<10;i++)
-        {
-            DataFrame results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
+        for (int i = 0; i < 10; i++) {
+            results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
         }
-        
-        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime)/10);
+
+        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime) / 10);
 
         //Procedure Of Decoding
 //        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {

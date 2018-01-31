@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -72,7 +73,7 @@ public final class PartitionQueryingSubject {
         FileUtils.deleteDirectory(new File(sqlResults));
 
         //Initialization of Apache Spark
-        SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("Spark").set("spark.default.parallelism", numberOfPartitions+"");
+        SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("Spark").set("spark.default.parallelism", numberOfPartitions + "");
 
         JavaSparkContext sc = new JavaSparkContext(conf);
 
@@ -122,34 +123,33 @@ public final class PartitionQueryingSubject {
         DataFrame dfsubjects = hiveCtx.createDataFrame(subjects, customSchema);
         hiveCtx.registerDataFrameAsTable(dfsubjects, "table");
 
+        DataFrame results = null;
+
         long startTime = System.currentTimeMillis();
-        
-        for(int i=0;i<10;i++)
-        {
-            DataFrame results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
+        for (int i = 0; i < 10; i++) {
+            results = hiveCtx.sql("SELECT * FROM table INNER JOIN table t1 ON table.object=t1.subject INNER JOIN table t2 ON t1.object=t2.subject WHERE table.subject='-39' AND table.predicate='-2' AND t1.predicate='-13' AND t2.predicate='-21'");
         }
-        
-        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime)/10);
+
+        System.out.println("EXECUTION TIME: " + (System.currentTimeMillis() - startTime) / 10);
 
         //Procedure Of Decoding
-//        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
-//            @Override
-//            public Iterable<Row> call(Iterator<Row> t) throws Exception {
-//                Collection<Row> rows = new ArrayList<Row>();
-//                while (t.hasNext()) {
-//                    //for every row get all the elements it has and decode them
-//                    Collection<String> elementsOfARow = new ArrayList<String>();
-//                    Row row = t.next();
-//                    for (int i = 0; i < row.size(); i++) {
-//                        elementsOfARow.add(y.getValue().get(row.getInt(i)));
-//                    }
-//                    rows.add(RowFactory.create(elementsOfARow));
-//                }
-//                return rows;
-//            }
-//        }, true);
-//
-//        
-//        s.saveAsTextFile(sqlResults);
+        JavaRDD<Row> s = results.toJavaRDD().mapPartitions(new FlatMapFunction<Iterator<Row>, Row>() {
+            @Override
+            public Iterable<Row> call(Iterator<Row> t) throws Exception {
+                Collection<Row> rows = new ArrayList<Row>();
+                while (t.hasNext()) {
+                    //for every row get all the elements it has and decode them
+                    Collection<String> elementsOfARow = new ArrayList<String>();
+                    Row row = t.next();
+                    for (int i = 0; i < row.size(); i++) {
+                        elementsOfARow.add(y.getValue().get(row.getInt(i)));
+                    }
+                    rows.add(RowFactory.create(elementsOfARow));
+                }
+                return rows;
+            }
+        }, true);
+
+        s.saveAsTextFile(sqlResults);
     }
 }
