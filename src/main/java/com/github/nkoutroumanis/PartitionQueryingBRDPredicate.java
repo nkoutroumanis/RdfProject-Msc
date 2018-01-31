@@ -115,7 +115,7 @@ public final class PartitionQueryingBRDPredicate {
                 return i;
             }
         }, true);
-        positiveSubjects.saveAsTextFile(sqlResults);
+//        positiveSubjects.saveAsTextFile(sqlResults);
 
         JavaRDD<Row> negativeSubjects = pairs.filter(new Function<Tuple2<Integer, Tuple2<Integer, Integer>>, Boolean>() {
             @Override
