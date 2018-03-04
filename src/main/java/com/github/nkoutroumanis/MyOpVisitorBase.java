@@ -127,8 +127,9 @@ public class MyOpVisitorBase extends OpVisitorBase {
         return formQuery;
 
     }
-    public static void main(String args[]) throws IOException
-    {
-        System.out.println(sparqlToEncodedSql("SELECT * WHERE {':node_376609000_1451606409000_-9.15947_38.70289' <a> ?x . ?x <a> ':Node'}"));
+
+    public static void main(String args[]) throws IOException {
+        //System.out.println(sparqlToEncodedSql("SELECT * WHERE {':node_376609000_1451606409000_-9.15947_38.70289' <a> ?x . ?x <a> ':Node'}"));
+        getTriples("SELECT * WHERE {'aString' <a> ?x . ?x <a> ':Node'}");
     }
 }
