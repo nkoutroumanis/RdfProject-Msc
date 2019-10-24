@@ -62,9 +62,43 @@ public final class PartitionQueryingSubject {
         //Dictionary Construction
         Map<Integer, String> dictionary = new HashMap<>();
         Files.lines(Paths.get(dictionaryPath)).forEach(new Consumer<String>() {
+            private int prevPos = 0;
+            private int nextPos = 0;
+
+            private String getNextToken(String str) {
+                if (nextPos == str.length())
+                    return null;
+                if (nextPos != 0) {
+                    prevPos = nextPos + 2;
+                }
+                nextPos = str.indexOf("\t", prevPos);
+                if (nextPos < 0)
+                    nextPos = str.length();
+                return str.substring(prevPos, nextPos);
+            }
+
+            private String getNextToken(String str, int skip) {
+                if (skip < 0) {
+                    return null;
+                }
+                int count = 0;
+                String res;
+                do {
+                    res = getNextToken(str);
+                }
+                while ((count++ < skip) && (res != null));
+                return res;
+            }
+
+            private void resetParser() {
+                prevPos = 0;
+                nextPos = 0;
+            }
+            
             @Override
             public void accept(String s) {
-                dictionary.put(Integer.parseInt(s.split("	", 2)[0]), s.split("	", 2)[1]);
+                resetParser();
+                dictionary.put(Integer.parseInt(getNextToken(s)), s.split(getNextToken(s));
             }
         }
         );
